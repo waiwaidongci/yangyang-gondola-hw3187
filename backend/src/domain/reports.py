@@ -34,6 +34,93 @@ def handover(dates: list[str], hw: list[float], naive: list[float], limit: int) 
     }, rows)
 
 
+def reserve_plan(dates: list[str], forecasts: list[float], plan: dict) -> dict:
+    """整周备水方案：每天的模拟需求区间、选定备水量与协调差额。"""
+    rows = []
+    scenarios = plan["scenarios"]
+    for step, (day, forecast) in enumerate(zip(dates, forecasts), start=1):
+        day_index = step - 1
+        if scenarios:
+            needs = [item["needs"][day_index] for item in scenarios]
+            min_need, max_need = min(needs), max(needs)
+        else:
+            min_need = max_need = None
+        reserve = plan["plan"][day_index]
+        shortfall = max(0, max_need - reserve) if max_need is not None else 0
+        cap_shortfall = max(0, reserve - plan["daily_limit"])
+        rows.append({
+            "date": day, "weekday": WEEKDAYS[date.fromisoformat(day).weekday()], "step": step,
+            "hw_liters": forecast, "min_need_liters": min_need, "max_need_liters": max_need,
+            "reserve_liters": reserve, "daily_limit_liters": plan["daily_limit"],
+            "shortfall_liters": shortfall, "over_limit_liters": cap_shortfall,
+            "action": "需协调" if shortfall or cap_shortfall else "常规备水",
+        })
+    return table("reserve_plan", "整周缺水风险备水方案", {
+        "date": "值班日期", "weekday": "星期", "step": "预测提前天数",
+        "hw_liters": "季节平滑点预测（升）", "min_need_liters": "情景最低需求（升）",
+        "max_need_liters": "情景最高需求（升）", "reserve_liters": "选定备水量（升）",
+        "daily_limit_liters": "单日上限（升）", "shortfall_liters": "最高情景待协调差额（升）",
+        "over_limit_liters": "超单日上限差额（升）", "action": "交班安排",
+    }, rows)
+
+
+def reserve_summary(plan: dict) -> dict:
+    """整周备水方案的覆盖率与上限核对汇总。"""
+    ratio = plan["coverage_ratio"]
+    row = {
+        "estimable": "是" if plan["estimable"] else "否",
+        "status": plan["status"],
+        "scenario_count": plan["scenario_count"],
+        "target_count": plan["target_count"],
+        "covered_count": plan["covered_count"],
+        "max_covered_count": plan["max_covered_count"],
+        "coverage_ratio": round(ratio, 6) if ratio is not None else None,
+        "coverage_percent": f"{ratio * 100:.2f}%" if ratio is not None else "无法估算",
+        "target_met": "是" if plan["target_met"] else "否",
+        "daily_limit_liters": plan["daily_limit"],
+        "weekly_limit_liters": plan["weekly_limit"],
+        "total_reserve_liters": plan["total_reserve"],
+        "uncoverable_count": plan["uncoverable_count"],
+    }
+    return table("reserve_summary", "整周备水覆盖率与上限核对", {
+        "estimable": "是否可估算", "status": "方案状态", "scenario_count": "历史整周情景数",
+        "target_count": "九成门槛情景数", "covered_count": "方案覆盖情景数",
+        "max_covered_count": "上限内最多可覆盖情景数", "coverage_ratio": "覆盖率",
+        "coverage_percent": "覆盖率（百分比）", "target_met": "是否达到九成",
+        "daily_limit_liters": "单日上上限（升）", "weekly_limit_liters": "整周上限（升）",
+        "total_reserve_liters": "选定方案总备水量（升）", "uncoverable_count": "结构性无法覆盖情景数",
+    }, [row])
+
+
+def reserve_scenarios(plan: dict) -> dict:
+    """每个历史整周情景的模拟需求与是否被选定方案七天全覆盖。"""
+    rows = []
+    for index, item in enumerate(plan["scenarios"], start=1):
+        rows.append({
+            "scenario_index": index, "origin_date": item["origin"],
+            "need_day_1": item["needs"][0], "need_day_2": item["needs"][1],
+            "need_day_3": item["needs"][2], "need_day_4": item["needs"][3],
+            "need_day_5": item["needs"][4], "need_day_6": item["needs"][5],
+            "need_day_7": item["needs"][6],
+            "error_day_1": item["errors"][0], "error_day_2": item["errors"][1],
+            "error_day_3": item["errors"][2], "error_day_4": item["errors"][3],
+            "error_day_5": item["errors"][4], "error_day_6": item["errors"][5],
+            "error_day_7": item["errors"][6],
+            "covered": "是" if item["covered"] else "否",
+        })
+    return table("reserve_scenarios", "历史整周情景明细", {
+        "scenario_index": "情景序号", "origin_date": "起点（最后一条可见日期）",
+        "need_day_1": "第1日模拟需求（升）", "need_day_2": "第2日模拟需求（升）",
+        "need_day_3": "第3日模拟需求（升）", "need_day_4": "第4日模拟需求（升）",
+        "need_day_5": "第5日模拟需求（升）", "need_day_6": "第6日模拟需求（升）",
+        "need_day_7": "第7日模拟需求（升）",
+        "error_day_1": "第1日有符号误差（升）", "error_day_2": "第2日有符号误差（升）",
+        "error_day_3": "第3日有符号误差（升）", "error_day_4": "第4日有符号误差（升）",
+        "error_day_5": "第5日有符号误差（升）", "error_day_6": "第6日有符号误差（升）",
+        "error_day_7": "第7日有符号误差（升）", "covered": "是否七天全覆盖",
+    }, rows)
+
+
 def trace(checks: list[ForecastCheck]) -> dict:
     return table("rolling_backtest", "滚动起点逐日回测", {
         "origin_date": "起点（最后一条可见日期）", "target_date": "目标日期", "step": "预测提前天数",

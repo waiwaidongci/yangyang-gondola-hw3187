@@ -10,6 +10,8 @@ SETTINGS = [
     {"key": "gamma", "label": "周季节平滑系数", "default": 0.25, "min": 0, "max": 1, "step": 0.01},
     {"key": "staging_limit_liters", "label": "早班备水上限（升）", "default": 1450,
      "min": 1, "max": MAX_LITERS, "step": 1},
+    {"key": "weekly_limit_liters", "label": "整周备水上限（升）", "default": 1450 * DAYS_PER_WEEK,
+     "min": 1, "max": MAX_LITERS, "step": 1},
 ]
 
 SPEC = {

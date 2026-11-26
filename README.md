@@ -5,8 +5,9 @@
 | 模块 | 能力 |
 |---|---|
 | 晨间补水台账 | 导入 UTF-8 CSV，校验日期连续性与实测、留出、待预测区段，保存输入快照 |
-| 季节平滑配置 | 设置水平、趋势、季节系数与早班备水上限，异步执行预测和滚动回测 |
+| 季节平滑配置 | 设置水平、趋势、季节系数与单日/整周备水上限，异步执行预测和滚动回测 |
 | 七日备水交班单 | 查看点预测、整升需求、备水差额、误差与起点明细，复核通过后导出 CSV |
+| 整周缺水风险备水 | 用收齐实测的历次七日误差组合推演下周，按单日与整周上限给出覆盖至少九成情景的最省水方案，达不到九成时给出覆盖最多且最省水的方案并写明覆盖率，无样本标明无法估算 |
 | 早班交班复核 | 记录签核决定和意见，保留运行审计 |
 
 ## 启动
@@ -37,7 +38,7 @@ docker compose exec -T backend python -m scripts.seed_demo
 | `POST /api/runs` | 提交 `dataset_id`、`label` 和 `settings`，空参数对象采用默认配置 |
 | `GET /api/runs/{id}` | 等待 `completed`，查看 `result` 的交班单、回测及拟合截点 |
 | `POST /api/runs/{id}/review` | 复核负责人提交 `decision` 和 `note`，批准值为 `approved` |
-| `GET /api/runs/{id}/export/staging_handover` | 下载批准后的七日备水交班单，其他表使用相应结果键 |
+| `GET /api/runs/{id}/export/staging_handover` | 下载批准后的七日备水交班单，其他表使用相应结果键（如 `reserve_plan`、`reserve_summary`、`reserve_scenarios`） |
 
 从项目根目录生成可直接导入的完整演示 CSV。它与固定 seed 使用同一套数据。
 
